@@ -1,0 +1,44 @@
+name: Build and Release
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+        go-version:
+          - 1.16
+        go-arch:
+          - amd64
+          - arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Build kubectl-karmada
+        run: make kubectl-karmada
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.go-arch }}
+      - name: Package kubectl-karmada
+        run: tar czf kubectl-karmada-${{ matrix.os }}-${{ matrix.go-arch }}.tgz kubectl-karmada LICENSE
+      - name: Upload kubectl-karmada
+        if: ${{ !env.ACT }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./kubectl-karmada-${{ matrix.os }}-${{ matrix.go-arch }}.tgz
+          asset_name: kubectl-karmada-${{ matrix.os }}-${{ matrix.go-arch }}.tgz
+          asset_content_type: application/gzip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
